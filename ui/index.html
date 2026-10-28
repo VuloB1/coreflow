@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Coreflow</title>
+<script src="i18n.js"></script>
+<style>
+  :root {
+    --bg:#061b21; --card:#0b2a33; --cell:#0f3743; --line:rgba(103,232,249,.13);
+    --fg:#e8fbff; --mut:#80a9b3; --acc:#22c7d6; --acc2:#67e8f9; --warn:#fbbf24; --bad:#f87171; --glow:rgba(34,199,214,.17); --knob:#062a33;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg:#e8f5f8; --card:#ffffff; --cell:#e0eff3; --line:rgba(8,145,178,.17);
+      --fg:#0a2b33; --mut:#5a7f89; --acc:#0891b2; --acc2:#06b6d4; --warn:#d97706; --bad:#dc2626; --glow:rgba(6,182,212,.14); --knob:#ffffff; }
+  }
+  :root[data-theme="light"] { --bg:#e8f5f8; --card:#ffffff; --cell:#e0eff3; --line:rgba(8,145,178,.17);
+    --fg:#0a2b33; --mut:#5a7f89; --acc:#0891b2; --acc2:#06b6d4; --warn:#d97706; --bad:#dc2626; --glow:rgba(6,182,212,.14); --knob:#ffffff; }
+  * { box-sizing:border-box; margin:0; }
+  html,body { height:100%; overflow:hidden; }
+  body { background:radial-gradient(420px 220px at 100% 0,var(--glow),transparent 70%),var(--bg); color:var(--fg);
+    font:13px/1.35 "Segoe UI Variable","Segoe UI","Microsoft YaHei UI","Yu Gothic UI","Malgun Gothic",system-ui,sans-serif; user-select:none; display:flex; flex-direction:column; position:relative; }
+
+  .tb { height:38px; flex:none; display:flex; align-items:center; gap:8px; padding:0 6px 0 12px; border-bottom:1px solid var(--line); }
+  .tb svg.logo { width:18px; height:18px; flex:none; pointer-events:none; }
+  .tb b { font-weight:650; letter-spacing:.2px; pointer-events:none; }
+  .tb .plan { color:var(--mut); font-size:12px; margin-left:4px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; pointer-events:none; }
+  .tb .sp { flex:1; align-self:stretch; }
+  .wb { width:30px; height:26px; border:0; border-radius:4px; background:none; color:var(--mut); cursor:pointer; display:grid; place-items:center; }
+  .wb:hover { background:var(--cell); color:var(--fg); }
+  .wb.x:hover { background:var(--bad); color:#fff; }
+  .wb.on { background:var(--cell); color:var(--acc2); }
+  .wb svg { width:12px; height:12px; stroke:currentColor; stroke-width:1.5; fill:none; stroke-linecap:round; }
+
+  main { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:10px; scrollbar-width:thin; scrollbar-color:var(--cell) transparent; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; }
+
+  .hero { display:flex; align-items:center; gap:12px; }
+  .ring { position:relative; width:62px; height:62px; flex:none; }
+  .ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+  .ring circle { fill:none; stroke-width:6; }
+  .ring .bg { stroke:var(--cell); }
+  .ring .fg { stroke:var(--acc); stroke-linecap:round; stroke-dasharray:163.4; stroke-dashoffset:163.4; transition:stroke-dashoffset .5s, stroke .3s; }
+  .ring.part .fg { stroke:var(--warn); }
+  .ring span { position:absolute; inset:0; display:grid; place-items:center; font-weight:700; font-size:14px; }
+  .htxt { flex:1; min-width:0; }
+  .state { font-size:16px; font-weight:650; }
+  .state.on { color:var(--acc2); }
+  .hint { color:var(--mut); font-size:12px; margin-top:2px; }
+
+  .sw { width:52px; height:30px; border:0; border-radius:8px; background:var(--cell); position:relative; cursor:pointer; flex:none; transition:background .25s; box-shadow:inset 0 0 0 1px var(--line); }
+  .sw::after { content:""; position:absolute; top:4px; left:4px; width:22px; height:22px; border-radius:5px; background:var(--mut); transition:transform .25s, background .25s; }
+  .sw.on { background:var(--acc); }
+  .sw.on::after { transform:translateX(22px); background:var(--knob); }
+  .sw:disabled { opacity:.5; cursor:wait; }
+
+  .ch { display:flex; justify-content:space-between; margin-bottom:8px; font-weight:600; }
+  .ch small { color:var(--mut); font-weight:400; font-size:12px; }
+  .cores { display:grid; gap:6px; }
+  .c { position:relative; height:42px; border-radius:5px; background:var(--cell); overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.15; border:1px solid transparent; transition:opacity .3s; }
+  .c .f { position:absolute; left:0; right:0; bottom:0; background:linear-gradient(0deg,var(--acc),transparent); opacity:.55; height:0; transition:height .5s; }
+  .c i { font-style:normal; font-weight:650; font-size:12px; position:relative; }
+  .c u { text-decoration:none; font-size:10px; color:var(--mut); position:relative; }
+  .c.p { opacity:.4; border:1px dashed var(--mut); }
+  .c.p .f { height:0 !important; }
+
+  .settings { position:absolute; left:0; right:0; top:38px; bottom:0; padding:12px; display:flex; flex-direction:column; gap:10px; overflow-y:auto;
+    background:radial-gradient(420px 220px at 100% 0,var(--glow),transparent 70%),var(--bg); scrollbar-width:thin; scrollbar-color:var(--cell) transparent;
+    opacity:0; transform:translateY(8px); pointer-events:none; transition:opacity .16s, transform .16s; }
+  .settings.open { opacity:1; transform:none; pointer-events:auto; }
+  .opts { padding:2px 12px; }
+  .opt { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; cursor:pointer; }
+  .opt + .opt { border-top:1px solid var(--line); }
+  .opt.col { flex-direction:column; align-items:stretch; gap:6px; cursor:default; }
+  .opt .sub { color:var(--mut); font-size:12px; }
+  input[type=checkbox] { appearance:none; width:36px; height:20px; border-radius:6px; background:var(--cell); position:relative; cursor:pointer; flex:none; transition:background .2s; box-shadow:inset 0 0 0 1px var(--line); }
+  input[type=checkbox]::after { content:""; position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:4px; background:var(--mut); transition:transform .2s, background .2s; }
+  input[type=checkbox]:checked { background:var(--acc); }
+  input[type=checkbox]:checked::after { transform:translateX(16px); background:var(--knob); }
+  input[type=text], select { padding:6px 10px; border-radius:5px; border:1px solid var(--line); background:var(--cell); color:var(--fg); font:inherit; user-select:text; outline:none; }
+  input[type=text] { width:100%; }
+  select { cursor:pointer; min-width:130px; }
+  select option { background:var(--card); color:var(--fg); }
+  input[type=text]:focus, select:focus { border-color:var(--acc); }
+  .seg { display:flex; background:var(--cell); border-radius:5px; padding:2px; gap:2px; }
+  .seg button { border:0; background:none; color:var(--mut); font:inherit; padding:4px 10px; border-radius:4px; cursor:pointer; }
+  .seg button.on { background:var(--acc); color:var(--knob); font-weight:600; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chips span { background:var(--card); border:1px solid var(--line); border-radius:5px; padding:3px 10px; font-size:11.5px; color:var(--mut); }
+  .err { position:absolute; left:12px; right:12px; bottom:10px; z-index:5; background:var(--card); border:1px solid var(--bad); border-radius:5px; padding:6px 10px; color:var(--bad); font-size:12px; }
+</style>
+</head>
+<body>
+  <header class="tb" data-tauri-drag-region>
+    <svg class="logo" viewBox="0 0 24 24"><polygon points="12,13 18,16 12,19 6,16" fill="#0e7490"/><polygon points="12,10 18,13 12,16 6,13" fill="#06b6d4"/><polygon points="12,7 18,10 12,13 6,10" fill="#67e8f9"/></svg>
+    <b>Coreflow</b><span class="plan" id="plan"></span>
+    <div class="sp" data-tauri-drag-region></div>
+    <button class="wb" id="gear" data-i-aria="settings" data-i-title="settings"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke-width:1.8;stroke-linejoin:round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button class="wb" id="min" data-i-aria="min"><svg viewBox="0 0 12 12"><path d="M2 6h8"/></svg></button>
+    <button class="wb x" id="close" data-i-aria="close"><svg viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+  </header>
+
+  <main>
+    <section class="card hero">
+      <div class="ring" id="ring"><svg viewBox="0 0 62 62"><circle class="bg" cx="31" cy="31" r="26"/><circle class="fg" id="arc" cx="31" cy="31" r="26"/></svg><span id="ringTxt">—</span></div>
+      <div class="htxt"><div class="state" id="state">…</div><div class="hint" id="hint"></div></div>
+      <button class="sw" id="sw" data-i-aria="sw"></button>
+    </section>
+
+    <section class="card">
+      <div class="ch"><span data-i="cores"></span><small id="avg"></small></div>
+      <div class="cores" id="grid"></div>
+    </section>
+  </main>
+
+  <section class="settings" id="settings">
+    <section class="card opts">
+      <label class="opt" data-i-title="guard_tip"><span><span data-i="guard"></span> <span class="sub" data-i="guard_sub"></span></span><input type="checkbox" id="guard"></label>
+      <label class="opt" data-i-title="auto_tip"><span data-i="auto"></span><input type="checkbox" id="auto"></label>
+      <label class="opt" data-i-title="bg_tip"><span><span data-i="bg"></span> <span class="sub" data-i="bg_sub"></span></span><input type="checkbox" id="bg"></label>
+      <div class="opt col"><span data-i="procs"></span><input type="text" id="procs" data-i-ph="procs_ph" spellcheck="false"></div>
+    </section>
+    <section class="card opts">
+      <div class="opt"><span data-i="lang"></span><select id="lang"></select></div>
+      <div class="opt"><span data-i="theme"></span><div class="seg" id="theme"><button data-v="auto"></button><button data-v="dark"></button><button data-v="light"></button></div></div>
+    </section>
+    <div class="chips"><span id="ac"></span><span id="dc"></span><span id="bk"></span></div>
+  </section>
+  <div class="err" id="err" hidden></div>
+
+<script>
+  const { invoke } = window.__TAURI__.core;
+  const win = window.__TAURI__.window.getCurrentWindow();
+  const $ = id => document.getElementById(id);
+  const pct = v => v == null ? 'n/a' : v + '%';
+  const H_CLOSED = 310, H_OPEN = 390;
+  let st, cfg = { lang: 'auto', theme: 'auto' }, cells = [], total = 0, lastCs = null;
+
+  const fail = e => { $('err').textContent = String(e); $('err').hidden = false; setTimeout(() => $('err').hidden = true, 5000); };
+
+  function setRing(active, n) {
+    $('ringTxt').textContent = n ? `${active}/${n}` : '—';
+    $('arc').style.strokeDashoffset = 163.4 * (1 - (n ? active / n : 0));
+    $('ring').classList.toggle('part', n > 0 && active < n);
+  }
+
+  function render(s) {
+    st = s;
+    $('plan').textContent = s.scheme;
+    $('sw').classList.toggle('on', s.unparked);
+    $('state').textContent = t(s.unparked ? 'on' : 'off');
+    $('state').classList.toggle('on', s.unparked);
+    $('hint').textContent = t(s.unparked ? 'hint_on' : 'hint_off');
+    $('ac').textContent = t('ac', { v: pct(s.values[0]) });
+    $('dc').textContent = t('dc', { v: pct(s.values[1]) });
+    $('bk').textContent = t(s.has_backup ? 'bk_yes' : 'bk_no');
+    if (!total) setRing(s.unparked ? s.cores : 0, s.cores);
+  }
+
+  async function call(cmd, args) {
+    $('err').hidden = true;
+    $('sw').disabled = true;
+    try { render(await invoke(cmd, args)); } catch (e) { fail(e); }
+    $('sw').disabled = false;
+  }
+
+  function build(n) {
+    total = n;
+    $('grid').style.gridTemplateColumns = `repeat(${n > 8 ? 8 : 4},1fr)`;
+    $('grid').innerHTML = Array.from({ length: n }, (_, i) => `<div class="c"><div class="f"></div><i>${i}</i><u></u></div>`).join('');
+    cells = [...$('grid').children].map(el => ({ el, f: el.firstChild, u: el.lastChild }));
+  }
+
+  function paint(cs) {
+    lastCs = cs;
+    if (cs.length !== total) build(cs.length);
+    let parked = 0, util = 0, mhz = 0;
+    cs.forEach((c, i) => {
+      const k = cells[i];
+      parked += c.parked;
+      util += c.util; mhz += c.mhz;
+      k.el.classList.toggle('p', c.parked);
+      k.f.style.height = c.util + '%';
+      k.u.textContent = c.parked ? 'P' : Math.round(c.util) + '%';
+      k.el.title = t(c.parked ? 'core_p' : 'core_u', { i, u: Math.round(c.util), g: (c.mhz / 1000).toFixed(1) });
+    });
+    setRing(cs.length - parked, cs.length);
+    $('avg').textContent = `${Math.round(util / cs.length)}% · ${(mhz / cs.length / 1000).toFixed(1)} GHz · ${t('parked', { n: parked })}`;
+  }
+
+  async function tick() {
+    if (document.hidden) return;
+    try {
+      const cs = await invoke('cores');
+      if (cs.length) paint(cs);
+    } catch (e) { fail(e); }
+  }
+
+  // language + theme: static texts via i18n.js, dynamic ones re-rendered here
+  function relabel() {
+    applyPrefs(cfg);
+    $('lang').innerHTML = `<option value="auto">${t('t_auto')}</option>` + Object.entries(LANGS).map(([k, n]) => `<option value="${k}">${n}</option>`).join('');
+    $('lang').value = cfg.lang;
+    document.querySelectorAll('#theme button').forEach(b => { b.textContent = t('t_' + b.dataset.v); b.classList.toggle('on', b.dataset.v === cfg.theme); });
+    if (st) render(st);
+    if (lastCs) paint(lastCs);
+  }
+
+  async function saveCfg() {
+    try {
+      cfg = await invoke('set_config', { cfg: { ...cfg, guard: $('guard').checked, background: $('bg').checked, processes: $('procs').value.split(','), lang: $('lang').value } });
+      $('procs').value = cfg.processes.join(', ');
+      relabel();
+    } catch (e) { fail(e); }
+  }
+
+  $('sw').onclick = () => call('set_unpark', { on: !st.unparked });
+  $('guard').onchange = saveCfg;
+  $('bg').onchange = saveCfg;
+  $('procs').onchange = saveCfg;
+  $('lang').onchange = saveCfg;
+  document.querySelectorAll('#theme button').forEach(b => b.onclick = () => { cfg.theme = b.dataset.v; saveCfg(); });
+  $('auto').onchange = () => invoke('set_autostart', { on: $('auto').checked }).catch(e => { fail(e); $('auto').checked = !$('auto').checked; });
+
+  // the window grows while the settings panel is open
+  const resize = h => { try { win.setSize(new window.__TAURI__.dpi.LogicalSize(400, h)).catch(() => {}); } catch (_) {} };
+  const toggleSettings = open => { $('settings').classList.toggle('open', open); $('gear').classList.toggle('on', open); resize(open ? H_OPEN : H_CLOSED); };
+  $('gear').onclick = () => toggleSettings(!$('settings').classList.contains('open'));
+  document.onkeydown = e => { if (e.key === 'Escape') toggleSettings(false); };
+  $('min').onclick = () => win.minimize();
+  $('close').onclick = () => win.close();
+
+  window.__TAURI__.event.listen('status', e => render(e.payload)); // from the tray menu / guard
+  relabel();
+  invoke('get_config').then(c => { cfg = c; $('guard').checked = c.guard; $('bg').checked = c.background; $('procs').value = c.processes.join(', '); relabel(); });
+  invoke('get_autostart').then(v => $('auto').checked = v);
+  call('status');
+  // slower when the window is not focused: nobody is reading it that closely
+  (function loop() { tick().finally(() => setTimeout(loop, document.hasFocus() ? 1000 : 3000)); })();
+</script>
+</body>
+</html>

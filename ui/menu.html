@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Coreflow</title>
+<script src="i18n.js"></script>
+<style>
+  :root { --bg:#061b21; --card:#0b2a33; --cell:#0f3743; --line:rgba(103,232,249,.13); --fg:#e8fbff; --mut:#80a9b3; --acc:#22c7d6; --acc2:#67e8f9; --bad:#f87171; --knob:#062a33; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg:#e8f5f8; --card:#ffffff; --cell:#e0eff3; --line:rgba(8,145,178,.17); --fg:#0a2b33; --mut:#5a7f89; --acc:#0891b2; --acc2:#06b6d4; --bad:#dc2626; --knob:#ffffff; }
+  }
+  :root[data-theme="light"] { --bg:#e8f5f8; --card:#ffffff; --cell:#e0eff3; --line:rgba(8,145,178,.17); --fg:#0a2b33; --mut:#5a7f89; --acc:#0891b2; --acc2:#06b6d4; --bad:#dc2626; --knob:#ffffff; }
+  * { box-sizing:border-box; margin:0; }
+  html,body { height:100%; overflow:hidden; }
+  body { background:var(--bg); color:var(--fg); font:13px/1.35 "Segoe UI Variable","Segoe UI","Microsoft YaHei UI","Yu Gothic UI","Malgun Gothic",system-ui,sans-serif; user-select:none; border:1px solid var(--line); padding:6px; display:flex; flex-direction:column; gap:2px; }
+  .hd { display:flex; align-items:center; gap:8px; padding:4px 8px 8px; border-bottom:1px solid var(--line); margin-bottom:4px; }
+  .hd svg { width:18px; height:18px; }
+  .hd b { font-weight:650; }
+  .hd small { margin-left:auto; color:var(--mut); font-size:11.5px; }
+  .hd small.on { color:var(--acc2); }
+  button { display:flex; align-items:center; justify-content:space-between; width:100%; height:32px; padding:0 8px; border:0; border-radius:5px; background:none; color:var(--fg); font:inherit; cursor:pointer; text-align:left; }
+  button:hover { background:var(--cell); }
+  button.q:hover { background:var(--bad); color:#fff; }
+  .tg { width:30px; height:16px; border-radius:5px; background:var(--cell); position:relative; box-shadow:inset 0 0 0 1px var(--line); transition:background .2s; }
+  .tg::after { content:""; position:absolute; top:3px; left:3px; width:10px; height:10px; border-radius:3px; background:var(--mut); transition:transform .2s, background .2s; }
+  .tg.on { background:var(--acc); }
+  .tg.on::after { transform:translateX(14px); background:var(--knob); }
+</style>
+</head>
+<body>
+  <div class="hd">
+    <svg viewBox="0 0 24 24"><polygon points="12,13 18,16 12,19 6,16" fill="#0e7490"/><polygon points="12,10 18,13 12,16 6,13" fill="#06b6d4"/><polygon points="12,7 18,10 12,13 6,10" fill="#67e8f9"/></svg>
+    <b>Coreflow</b><small id="st"></small>
+  </div>
+  <button id="open" data-i="m_open"></button>
+  <button id="toggle"><span data-i="m_toggle"></span><span class="tg" id="tg"></span></button>
+  <button id="quit" class="q" data-i="m_quit"></button>
+<script>
+  const { invoke } = window.__TAURI__.core;
+  const $ = id => document.getElementById(id);
+  // the popup is reused while warm, so re-read language, theme and state on every show
+  const load = () => Promise.all([invoke('get_config'), invoke('status')]).then(([c, s]) => {
+    applyPrefs(c);
+    $('tg').classList.toggle('on', s.unparked);
+    $('st').textContent = t(s.unparked ? 'm_on' : 'm_off');
+    $('st').classList.toggle('on', s.unparked);
+  });
+  load();
+  window.__TAURI__.event.listen('refresh', load);
+  $('open').onclick = () => invoke('open_main');
+  $('toggle').onclick = () => invoke('tray_toggle');
+  $('quit').onclick = () => invoke('quit_app');
+</script>
+</body>
+</html>
