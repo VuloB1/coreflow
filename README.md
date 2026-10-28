@@ -72,7 +72,10 @@ Live core data comes from the Windows performance counters (`Processor Informati
 
 ## Install
 
-Pre-built installers are not published yet. Build from source:
+Download `Coreflow_0.1.0_x64-setup.exe` from the [latest release](https://github.com/VuloB1/coreflow/releases/latest).
+The installer is unsigned, so Windows SmartScreen may warn you the first time you run it.
+
+### Build from source
 
 **Requirements:** Windows 10/11 x64, [Rust](https://rustup.rs/) (stable) with the MSVC build tools, and the
 WebView2 runtime (already part of Windows 11).
@@ -88,8 +91,6 @@ To build an installer (needs Node.js for the Tauri CLI):
 ```bash
 npx @tauri-apps/cli@2 build --bundles nsis
 ```
-
-The installer is unsigned, so Windows SmartScreen may warn you the first time you run it.
 
 ## Command line
 
